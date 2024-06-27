@@ -1,0 +1,75 @@
+name: Depend-finder
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: 'Comma-separated list of package names to check dependencies'
+        required: true
+        default: 'lua5.3,lua5.4'
+env:
+  REPO_URL: https://github.com/immortalwrt/immortalwrt
+  REPO_BRANCH: master
+  CONFIG_FILE: full.config
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Ensure packages input is not empty
+      run: |
+        packages="${{ github.event.inputs.packages }}"
+        if [ -z "$packages" ]; then
+          echo "No packages specified."
+          exit 1
+        fi
+        
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo timedatectl set-timezone "$TZ"
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
+        
+    - name: Clone source code
+      working-directory: /workdir
+      run: |
+        df -hT $PWD
+        git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+        cd openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
+    - name: Update feeds
+      run: |
+        cd openwrt
+        ./scripts/feeds update -a
+
+    - name: Install feeds
+      run: |
+        cd openwrt
+        ./scripts/feeds install -a
+
+    - name: Check dependencies
+      run: |
+        cd openwrt
+        find . -name ".git" -type d -exec rm -rf {} + || exit 1
+        packages="${{ github.event.inputs.packages }}"
+        IFS=',' read -ra pkg_array <<< "$packages"
+
+        for pkg in "${pkg_array[@]}"; do
+          echo
+          echo "_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/"
+          echo "_/"
+          echo "_/ 依赖 $pkg 的组件..."
+          echo "_/"
+          echo "_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/"
+          echo
+          grep -r -I "$pkg" ./ | grep 'Makefile:.*DEPENDS' || true
+        done

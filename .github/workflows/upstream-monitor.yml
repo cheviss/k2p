@@ -1,0 +1,81 @@
+name: Upstream Monitor
+
+env:
+  REPO_URL: https://github.com/immortalwrt/immortalwrt
+  REPO_BRANCH: master
+
+on:
+  schedule:
+    - cron: '30 21 * * *'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check upstream version
+        id: Get-tag
+        run: |
+          FOUND=false
+          NEW_TAG=""
+          RELEASED_TAG=$(awk '/latest/{print $NF; exit}' README.md)
+          IFS='.' read -r -a RELEASED_TAG_HT <<< "${RELEASED_TAG//v/}"
+          
+          TAG_LIST=$(wget -qO- --tries=3 "https://api.github.com/repos/immortalwrt/immortalwrt/tags" | awk -F '"' '/name/{print $(NF-1)}')
+          IFS=' ' read -r -a TAGS <<< "$TAG_LIST"
+
+          # 遍历查找所有的标签，因为上游有多个版本并行发布，找出比已发布版本更新的标签
+          for TAG in "${TAGS[@]}"; do
+            # 按段拆分标签
+            IFS='.' read -r -a CURRENT_TAG_HT <<< "${TAG//v/}"
+
+            # 标准化
+            while [[ ${#RELEASED_TAG_HT[@]} -lt ${#CURRENT_TAG_HT[@]} ]]; do
+              RELEASED_TAG_HT+=("0")
+            done
+            while [[ ${#CURRENT_TAG_HT[@]} -lt ${#RELEASED_TAG_HT[@]} ]]; do
+              CURRENT_TAG_HT+=("0")
+            done
+
+            # 比较
+            for ((i=0; i<${#RELEASED_TAG_HT[@]}; i++)); do
+              if (( 10#${CURRENT_TAG_HT[i]} > 10#${RELEASED_TAG_HT[i]} )); then
+                FOUND=true
+                break
+              elif (( 10#${CURRENT_TAG_HT[i]} < 10#${RELEASED_TAG_HT[i]} )); then
+                break
+              fi
+            done
+
+            # 有新版
+            if $FOUND; then
+              NEW_TAG=$TAG
+              break
+            fi
+          done
+          
+          echo "RELEASED VERSION: $RELEASED_TAG"
+          if $FOUND; then
+            echo "UPSTREAM NEW TAG: $NEW_TAG"
+          fi
+
+          echo "TAG=${NEW_TAG}" >> $GITHUB_OUTPUT
+  
+      - name: Trigger build
+        if: steps.Get-tag.outputs.TAG != ''
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.PAT }}
+          event-type: Auto Build
+          client-payload: '{"tag": "${{ steps.Get-tag.outputs.TAG }}"}'
+
+      - name: Delete workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          retain_days: 90
+          keep_minimum_runs: 7
