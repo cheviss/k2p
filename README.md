@@ -21,15 +21,13 @@
 * dmesg
 * lsblk
 * blkid
-* tcping
 * iperf3
 * iftop
-* httping
 * curl
 
 
 [ci_badge]: https://github.com/mia0x75/Action-Builder-openwrt-k2p/actions/workflows/build.yml/badge.svg
 [ci_link]: https://github.com/mia0x75/Action-Builder-openwrt-k2p/actions/workflows/build.yml
 <!--
-latest: v23.05.2
+latest: v23.05.1
 -->
