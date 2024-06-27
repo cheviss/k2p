@@ -138,7 +138,7 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
-    - name: Post make download
+    - name: Check .config file
       run: |
         if [ ${{ env.VERBOSE }} == 'true' ] ; then
           echo
@@ -165,7 +165,7 @@ jobs:
           diff $GITHUB_WORKSPACE/$CONFIG_FILE openwrt/.config || true
         # fi
         
-    - name: Compile tools
+    - name: Compile world
       id: compile-world
       run: |
         set -e
@@ -193,7 +193,9 @@ jobs:
       run: |
         cd openwrt/bin/targets/*/*
         
-        tree .
+        if [ ${{ env.VERBOSE }} == 'true' ] ; then
+          tree .
+        fi
         
         rm -rf packages
         if [ ${{ env.VERBOSE }} == 'true' ] ; then
