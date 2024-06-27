@@ -19,6 +19,8 @@
 # sed -i 's/key=15581822425/key=gds.2021/g' package/kernel/mac80211/files/lib/wifi/mac80211.sh
 
 
+sed -i -E 's/CONFIG_PACKAGE_busybox=(m|n)/CONFIG_PACKAGE_busybox=y/' .config
+
 sed -i -E 's/CONFIG_PACKAGE_dnsmasq-full=(m|y)/# CONFIG_PACKAGE_dnsmasq-full is not set/' .config
 sed -i -E 's/CONFIG_PACKAGE_dnsmasq_full_dhcp=(m|y)/# CONFIG_PACKAGE_dnsmasq_full_dhcp is not set/' .config
 sed -i -E 's/CONFIG_PACKAGE_dnsmasq_full_dhcpv6=(m|y)/# CONFIG_PACKAGE_dnsmasq_full_dhcpv6 is not set/' .config
